@@ -6,7 +6,7 @@ import {IAxelarExecutable} from "@axelar-network/axelar-cgp-solidity/src/interfa
 import {IERC20} from "@axelar-network/axelar-cgp-solidity/src/interfaces/IERC20.sol";
 import {IAxelarGasReceiver} from "@axelar-network/axelar-cgp-solidity/src/interfaces/IAxelarGasReceiver.sol";
 
-contract OnTimePayment is IAxelarExecutable {
+contract OneTimePayment is IAxelarExecutable {
     IAxelarGasReceiver gasReceiver; 
 
 
@@ -18,39 +18,38 @@ contract OnTimePayment is IAxelarExecutable {
         string memory destinationChain, 
         string memory destinationAddress, 
         string memory symbol, 
+        address receiverAddress,
         uint256 amount
     ) external payable {
         address tokenAddress = gateway.tokenAddresses(symbol);
         IERC20(tokenAddress).transferFrom(msg.sender, address(this), amount);
         IERC20(tokenAddress).approve(address(gateway), amount);
-        bytes memory payload = abi.encode(amount, symbol, destinationAddress);
+        bytes memory payload = abi.encode(receiverAddress);
+
         if(msg.value > 0) {
-            gasReceiver.payNativeGasForContractCall{ value: msg.value }(
+            gasReceiver.payNativeGasForContractCallWithToken{value: msg.value}(
                 address(this),
                 destinationChain,
                 destinationAddress,
                 payload,
+                symbol,
+                amount,
                 msg.sender
             );
         }
-
-        gateway.callContract(
-            destinationChain,
-            destinationAddress,
-            payload
-        );
+        gateway.callContractWithToken(destinationChain, destinationAddress, payload, symbol, amount);
     }
 
-    function _execute(
-        string memory sourceChain_,
-        string memory sourceAddress_, 
-        bytes calldata payload_
+    function _executeWithToken(
+        string memory,
+        string memory,
+        bytes calldata payload,
+        string memory tokenSymbol,
+        uint256 amount
     ) internal override {
-        address creatorAddress;
-        uint256 amount;
-        string memory tokenSymbol;
-        (amount, tokenSymbol, creatorAddress) = abi.decode(payload_, (uint256, string, address));
+        address receiverAddress = abi.decode(payload, (address));
         address tokenAddress = gateway.tokenAddresses(tokenSymbol);
-        IERC20(tokenAddress).transfer(creatorAddress, amount);
+        IERC20(tokenAddress).transfer(receiverAddress, amount);
+
     }
 }
