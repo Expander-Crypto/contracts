@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "NODE_ENV=test mocha --timeout 10000",
+    "build": "waffle"
   },
   "repository": {
     "type": "git",
@@ -18,7 +19,9 @@
   "homepage": "https://github.com/Expander-Crypto/contracts#readme",
   "devDependencies": {
     "@openzeppelin/contracts": "^4.6.0",
-    "ethereum-waffle": "^3.4.4"
+    "chai": "^4.3.6",
+    "ethereum-waffle": "^3.4.4",
+    "mocha": "^10.0.0"
   },
   "dependencies": {
     "@axelar-network/axelar-local-dev": "github:axelarnetwork/axelar-local-dev"
