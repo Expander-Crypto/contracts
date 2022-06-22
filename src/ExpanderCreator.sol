@@ -2,16 +2,15 @@
 
 pragma solidity 0.8.9;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-
-import "./ExpanderFactory.sol";
+import {IAxelarExecutable} from "@axelar-network/axelar-cgp-solidity/src/interfaces/IAxelarExecutable.sol";
+import {IERC20} from "@axelar-network/axelar-cgp-solidity/src/interfaces/IERC20.sol";
+import {IAxelarGasReceiver} from "@axelar-network/axelar-cgp-solidity/src/interfaces/IAxelarGasReceiver.sol";
 
 contract ExpanderCreator is IAxelarExecutable {
 
     IAxelarGasReceiver gasReceiver; 
     creator public creatorInfo;
-    address owner;
+    address public owner;
 
     modifier ownerOrContract() {
         require (msg.sender == owner || msg.sender == address(this));
@@ -90,5 +89,4 @@ contract ExpanderCreator is IAxelarExecutable {
         address tokenAddress = gateway.tokenAddresses(tokenSymbol);
         IERC20(tokenAddress).transfer(receiverAddress, amount);
     }
-
 }
