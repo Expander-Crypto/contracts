@@ -56,8 +56,8 @@ describe("Subscriptions", () => {
   );
 
   const chains = require("../info/local.json");
-  const source = chains.find((chain) => chain.name == "Avalanche");
-  const destination = chains.find((chain) => chain.name == "Fantom");
+  const source = chains.find((chain) => chain.name == "Avalanche"); // Where the subscriber is
+  const destination = chains.find((chain) => chain.name == "Fantom"); // Where the creator is
   const ownerWallet = new Wallet(owner);
   const creatorWallet = new Wallet(creator);
   const symbol = "aUSDC";
@@ -84,10 +84,15 @@ describe("Subscriptions", () => {
         ExpanderSubscriptions.abi,
         chain.wallet
       );
+      chain.Payment = new Contract(
+        chain.PaymentAddress,
+        Payment.abi,
+        chain.wallet
+      );
     }
   });
 
-  it("Can add a new subscription", async () => {
+  it("Can add a new subscription and pay", async () => {
     expect(
       Number(
         BigInt(await source.ExpanderSubscriptions.getNumberOfSubscriptions())
@@ -120,6 +125,9 @@ describe("Subscriptions", () => {
         ]
       )
     );
+    const balance = await destination.token.balanceOf(creatorWallet.address);
+    await (await source.token.approve(source.Payment.address, amount)).wait();
+
     await source.ExpanderSubscriptions.addSubscription(
       subscription,
       payment,
@@ -132,89 +140,49 @@ describe("Subscriptions", () => {
       )
     ).to.be.equal(1);
 
-    // expect(
-    //   Number(BigInt(await source.FactoryContract.getNumberOfCreators()))
-    // ).to.be.equal(0);
-    // await source.FactoryContract.addCreator(
-    //   creatorWallet.address,
-    //   String(source.chainId),
-    //   source.name,
-    //   "hello"
-    // );
-    // expect(
-    //   Number(BigInt(await source.FactoryContract.getNumberOfCreators()))
-    // ).to.be.equal(1);
+    await (
+      await source.ExpanderSubscriptions.payForCreatorSubscription(
+        uniqueId,
+        120,
+        String(destination.Payment.address),
+        source.Payment.address
+      )
+    ).wait();
+    await (
+      await source.Payment.sendOneTimePayment(
+        destination.name,
+        destination.Payment.address,
+        "aUSDC",
+        creatorWallet.address,
+        amount,
+        ownerWallet.address,
+        source.name,
+        {
+          value: BigInt(Math.floor(gasLimit * gasPrice)),
+        }
+      )
+    ).wait();
+    const updatedSubscription =
+      await source.ExpanderSubscriptions.getSubscription(uniqueId);
+    expect(
+      Number(
+        BigInt(updatedSubscription.subscription.remainingPaymentTimestamps)
+      )
+    ).to.be.equal(5);
+    expect(
+      Number(
+        BigInt(updatedSubscription.subscription.nextEligiblePayoutTimestamp)
+      )
+    ).to.be.equal(200);
+
+    while (
+      BigInt(await destination.token.balanceOf(creatorWallet.address)) ==
+      balance
+    ) {
+      await sleep(2000);
+    }
+    expect(
+      await destination.token.balanceOf(creatorWallet.address)
+    ).to.be.equal(Number(balance) + 9000000);
   });
-
-  //   it("Creator can only sign up once", async () => {
-  //     await source.FactoryContract.addCreator(
-  //       creatorWallet.address,
-  //       String(source.chainId),
-  //       source.name,
-  //       "hello"
-  //     );
-  //     await expect(
-  //       source.FactoryContract.addCreator(
-  //         creatorWallet.address,
-  //         String(source.chainId),
-  //         source.name,
-  //         "hello"
-  //       )
-  //     ).to.be.revertedWith("Creator already exists");
-  //   });
-
-  // it("sendOneTimePayment works as intended for same chain", async () => {
-  //   const balance = await source.token.balanceOf(creatorWallet.address);
-  //   await (
-  //     await source.token.approve(source.CreatorContract.address, amount)
-  //   ).wait();
-  //   await (
-  //     await source.CreatorContract.sendOneTimePayment(
-  //       source.name,
-  //       source.CreatorContract.address,
-  //       symbol,
-  //       creatorWallet.address,
-  //       amount,
-  //       ownerWallet.address,
-  //       { value: BigInt(Math.floor(gasLimit * gasPrice)) }
-  //     )
-  //   ).wait();
-
-  //   while (
-  //     BigInt(await source.token.balanceOf(creatorWallet.address)) == balance
-  //   ) {
-  //     await sleep(2000);
-  //   }
-  //   expect(await source.token.balanceOf(creatorWallet.address)).to.be.equal(
-  //     Number(balance) + 10000000
-  //   );
-  // });
-
-  // it("sendOneTimePayment works as intended for cross chain", async () => {
-  //   const balance = await destination.token.balanceOf(creatorWallet.address);
-  //   await (
-  //     await source.token.approve(source.CreatorContract.address, amount)
-  //   ).wait();
-  //   await (
-  //     await source.CreatorContract.sendOneTimePayment(
-  //       destination.name,
-  //       destination.CreatorContract.address,
-  //       symbol,
-  //       creatorWallet.address,
-  //       amount,
-  //       ownerWallet.address,
-  //       { value: BigInt(Math.floor(gasLimit * gasPrice)) }
-  //     )
-  //   ).wait();
-
-  //   while (
-  //     BigInt(await destination.token.balanceOf(creatorWallet.address)) ==
-  //     balance
-  //   ) {
-  //     await sleep(2000);
-  //   }
-  //   expect(
-  //     await destination.token.balanceOf(creatorWallet.address)
-  //   ).to.be.equal(Number(balance) + 9000000);
-  // });
 });

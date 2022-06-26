@@ -54,31 +54,36 @@ contract ExpanderSubscriptions {
     function payForCreatorSubscription(
         bytes32 _uniqueId, uint256 _time, 
         string memory _paymentCreatorContractAddress, 
-        address _paymentSubscriberContractAddress) public {
-        require(!lock);
-        lock = true;
+        address _paymentSubscriberContractAddress) public payable {
+        // require(!lock);
+        // lock = true;
         creatorSubscription memory sub = subscriptionMapping[_uniqueId];
         paymentInfo memory payment = sub.payment;
         creatorInfo memory creator = sub.creator;
         subscriptionInfo memory subscription = sub.subscription;
         if(subscription.remainingPaymentTimestamps > 0 && subscription.nextEligiblePayoutTimestamp < _time) {
-            Payment(_paymentSubscriberContractAddress).sendOneTimePayment(
-                creator.chainName,  
-                _paymentCreatorContractAddress,
-                payment.tokenSymbol,
-                creator.creatorAddress,
-                subscription.recurringAmount,
-                payment.walletAddress,
-                payment.chainName
-            );
             updatePayment(_uniqueId);
-            
+                // require(subscription.recurringAmount <= msg.value, "Ether value sent is not enough");
+                
+                // Payment(_paymentSubscriberContractAddress).sendOneTimePayment{value: msg.value}(
+                //     creator.chainName,  
+                //     _paymentCreatorContractAddress,
+                //     payment.tokenSymbol,
+                //     creator.creatorAddress,
+                //     subscription.recurringAmount,
+                //     payment.walletAddress,
+                //     payment.chainName
+                // );
         }
-        lock = false;
+        // lock = false;
     }
 
     function getNumberOfSubscriptions() public view returns(uint256) {
         return subscriptions.length;
+    }
+
+    function getSubscription(bytes32 _uniqueId) public view returns(creatorSubscription memory) {
+        return subscriptionMapping[_uniqueId];
     }
 
     struct subscriptionInfo {
