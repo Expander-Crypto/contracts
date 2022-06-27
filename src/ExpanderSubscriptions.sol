@@ -6,7 +6,6 @@ import {IERC20} from "@axelar-network/axelar-cgp-solidity/src/interfaces/IERC20.
 import "./Payment.sol";
 contract ExpanderSubscriptions {
 
-    bool lock;
     address public owner;
     creatorSubscription[] public subscriptions;
     mapping(bytes32 => creatorSubscription) public subscriptionMapping;
@@ -50,32 +49,42 @@ contract ExpanderSubscriptions {
         sub.subscription.nextEligiblePayoutTimestamp+= sub.subscription.interval;
     }
 
+    event PaymentInitiated(string destinationChain, 
+        string destinationAddress, 
+        string symbol, 
+        address receiverAddress,
+        uint256 amount, 
+        address senderAddress, 
+        string originChain);
+
     // Calling this will at most only pay for one subscription
     function payForCreatorSubscription(
         bytes32 _uniqueId, uint256 _time, 
         string memory _paymentCreatorContractAddress, 
         address _paymentSubscriberContractAddress) public payable {
-        // require(!lock);
-        // lock = true;
         creatorSubscription memory sub = subscriptionMapping[_uniqueId];
         paymentInfo memory payment = sub.payment;
         creatorInfo memory creator = sub.creator;
         subscriptionInfo memory subscription = sub.subscription;
         if(subscription.remainingPaymentTimestamps > 0 && subscription.nextEligiblePayoutTimestamp < _time) {
             updatePayment(_uniqueId);
-                // require(subscription.recurringAmount <= msg.value, "Ether value sent is not enough");
-                
-                // Payment(_paymentSubscriberContractAddress).sendOneTimePayment{value: msg.value}(
-                //     creator.chainName,  
-                //     _paymentCreatorContractAddress,
-                //     payment.tokenSymbol,
-                //     creator.creatorAddress,
-                //     subscription.recurringAmount,
-                //     payment.walletAddress,
-                //     payment.chainName
-                // );
+                emit PaymentInitiated(creator.chainName,  
+                    _paymentCreatorContractAddress,
+                    payment.tokenSymbol,
+                    creator.creatorAddress,
+                    subscription.recurringAmount,
+                    payment.walletAddress,
+                    payment.chainName);
+                Payment(_paymentSubscriberContractAddress).sendOneTimePayment{value: msg.value}(
+                    creator.chainName,  
+                    _paymentCreatorContractAddress,
+                    payment.tokenSymbol,
+                    creator.creatorAddress,
+                    subscription.recurringAmount,
+                    payment.walletAddress,
+                    payment.chainName
+                );
         }
-        // lock = false;
     }
 
     function getNumberOfSubscriptions() public view returns(uint256) {

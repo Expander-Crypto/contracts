@@ -62,7 +62,7 @@ describe("Subscriptions", () => {
   const creatorWallet = new Wallet(creator);
   const symbol = "aUSDC";
   const gasLimit = 3e6;
-  const gasPrice = 1;
+  const gasPrice = 1; //10 * 1e9;
   const amount = 10e6;
 
   beforeEach(async () => {
@@ -108,8 +108,8 @@ describe("Subscriptions", () => {
       chainName: source.name,
       chainId: source.chainId,
       walletAddress: ownerWallet.address,
-      tokenName: source.tokenName,
-      tokenSymbol: source.tokenSymbol,
+      tokenName: "USDC",
+      tokenSymbol: symbol,
     };
     const creator = {
       creatorAddress: creatorWallet.address,
@@ -126,7 +126,12 @@ describe("Subscriptions", () => {
       )
     );
     const balance = await destination.token.balanceOf(creatorWallet.address);
-    await (await source.token.approve(source.Payment.address, amount)).wait();
+    await (
+      await source.token.approve(
+        source.Payment.address,
+        amount * subscription.remainingPaymentTimestamps
+      )
+    ).wait();
 
     await source.ExpanderSubscriptions.addSubscription(
       subscription,
@@ -139,24 +144,12 @@ describe("Subscriptions", () => {
         BigInt(await source.ExpanderSubscriptions.getNumberOfSubscriptions())
       )
     ).to.be.equal(1);
-
     await (
       await source.ExpanderSubscriptions.payForCreatorSubscription(
         uniqueId,
         120,
         String(destination.Payment.address),
-        source.Payment.address
-      )
-    ).wait();
-    await (
-      await source.Payment.sendOneTimePayment(
-        destination.name,
-        destination.Payment.address,
-        "aUSDC",
-        creatorWallet.address,
-        amount,
-        ownerWallet.address,
-        source.name,
+        source.Payment.address,
         {
           value: BigInt(Math.floor(gasLimit * gasPrice)),
         }
@@ -174,9 +167,8 @@ describe("Subscriptions", () => {
         BigInt(updatedSubscription.subscription.nextEligiblePayoutTimestamp)
       )
     ).to.be.equal(200);
-
     while (
-      BigInt(await destination.token.balanceOf(creatorWallet.address)) ==
+      Number(await destination.token.balanceOf(creatorWallet.address)) ==
       balance
     ) {
       await sleep(2000);
