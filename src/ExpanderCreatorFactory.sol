@@ -3,11 +3,10 @@
 pragma solidity 0.8.9;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./ExpanderCreator.sol";
 import {IAxelarExecutable} from "@axelar-network/axelar-cgp-solidity/src/interfaces/IAxelarExecutable.sol";
 import {IAxelarGasReceiver} from "@axelar-network/axelar-cgp-solidity/src/interfaces/IAxelarGasReceiver.sol";
 
-contract ExpanderFactory {
+contract ExpanderCreatorFactory {
 
     address public owner;
 
@@ -24,21 +23,22 @@ contract ExpanderFactory {
         string creatorAddress;
         string chainId;
         string chainName;
+        string userId;
     }    
 
-    ExpanderCreator[] public creators;
+    creator[] public creators;
 
     mapping(bytes32 => bool) public creatorExists;
-    mapping(bytes32 => ExpanderCreator) public ExpanderCreatorMapping;
+    mapping(bytes32 => creator) public ExpanderCreatorMapping;
 
     function getHashedCreatorInfo (string memory _creatorAddress, string memory _chainId, string memory _chainName) public pure returns (bytes32) {
         return keccak256(abi.encode(_creatorAddress, _chainId, _chainName));
     }
 
-    function addCreator(address _gateway, address _gasReceiver, string memory _creatorAddress, string memory _chainId, string memory _chainName) public {
+    function addCreator(string memory _creatorAddress, string memory _chainId, string memory _chainName, string memory _userId) public {
         bytes32 hashedCreatorInfo = getHashedCreatorInfo(_creatorAddress, _chainId, _chainName);
         require(creatorExists[hashedCreatorInfo] == false, "Creator already exists");
-        ExpanderCreator newCreator = new ExpanderCreator(_gateway, _gasReceiver, _creatorAddress, _chainId, _chainName, owner);
+        creator memory newCreator = creator(_creatorAddress, _chainId, _chainName, _userId);
         creators.push(newCreator);
         ExpanderCreatorMapping[hashedCreatorInfo] = newCreator;
         creatorExists[hashedCreatorInfo] = true;
